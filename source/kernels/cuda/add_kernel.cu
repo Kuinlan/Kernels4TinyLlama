@@ -1,10 +1,13 @@
 #include <cstdint>
 
-// warp this kernel
 // Add operation for residual add
-// usage:
-//   block size = 512
-//   grid size = (total_num + block_size - 1) / block_size
+// Config:
+//   block(512)
+//   grid(N/512)
+// Args:
+//   in1: Nx1
+//   in2: Nx1
+//   out: Nx1
 __global__ void add_kernel_cu_fp32(int32_t size, const float* in1, const float* in2, float* out) {
   int32_t tid = threadIdx.x + blockDim.x * blockIdx.x;
   if (tid >= size) {

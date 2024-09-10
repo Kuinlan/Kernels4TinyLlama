@@ -58,17 +58,3 @@ __global__ void sin_cos_calc(int head_size, int max_seq_len, float* sin_cache, f
   }
 }
 
-void sin_cos_cache_calc_cu(int head_size, int max_seq_len, const tensor::Tensor& sin_cache,
-                           const tensor::Tensor& cos_cache, cudaStream_t stream) {
-  CHECK_EQ(sin_cache.is_empty(), false);
-  CHECK_EQ(cos_cache.is_empty(), false);
-  int threads = head_size;
-  if (stream) {
-    sin_cos_calc<<<1, threads, 0, stream>>>(head_size, max_seq_len,
-                                            const_cast<float*>(sin_cache.ptr<float>()),
-                                            const_cast<float*>(cos_cache.ptr<float>()));
-  } else {
-    sin_cos_calc<<<1, threads>>>(head_size, max_seq_len, const_cast<float*>(sin_cache.ptr<float>()),
-                                 const_cast<float*>(cos_cache.ptr<float>()));
-  }
-}

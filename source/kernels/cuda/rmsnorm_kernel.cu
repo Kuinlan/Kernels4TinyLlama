@@ -1,11 +1,18 @@
 #include <cub/block/block_reduce.cuh>
 #include <cstdint>
 
-// warp this kernel
-// perform rmsnorm for MHA、MLP and final output
-// usage:
-//   block size : 128
-//   grid  size : 1
+// RMS Norm
+// Config:
+//   block(128)
+//   grid(1)
+// Args:
+//   in: 1xN
+//   wei: 1xN
+//   out: 1xN
+//   size: 2048
+//   eps: 1e-6
+
+
 template <int32_t BLOCK_DIM>
 static __global__ void row_rmsnorm_f32(float* in, float* wei, float* out, int size, float eps) {
   const int tid = threadIdx.x;

@@ -1,18 +1,24 @@
 #include <cub/block/block_reduce.cuh>
 #include <cstdint>
 
-// warp this kernel
-// perform gemv for QKV and MLP layer
-// usage:
-//   shape of weight of linear layer: [M, N]
-//   block size = 128
-//   grid size = M  (row num of weight)
+// SGEMV Kernel
+// Info:
+//   for a Linear(dim_in, dim_out) layer, its weight would be a [dim_in, dim_out] matrix
+// Config:
+//   block(128)
+//   grid(M)
+// Args:
+//   input: 1xN
+//   weight: NxM
+//   output: 1xM
+
 template <int THREAD_PER_BLOCK, int ROW_PER_BLOCK>
 __global__ void matmul_kernel_cu_fp32(const float* input, const float* weight, float* output, int M,
                                       int N) {
   __shared__ float sdata[THREAD_PER_BLOCK];
   unsigned int tid = threadIdx.x;
 
+  // 每个 block 处理输出向量一列或者多列的数据
   int start_row = blockIdx.x * ROW_PER_BLOCK;
   int end_row = start_row + ROW_PER_BLOCK;
   if (start_row >= N) {
@@ -31,6 +37,8 @@ __global__ void matmul_kernel_cu_fp32(const float* input, const float* weight, f
     float4* weight_float4_ptr = (float4*)(weight + row_offset);
 
 #pragma unroll
+    // 使用 128 个线程向量化读取，并行计算点积，将结果放入共享内存
+    // 对于 dim 大于 block size 的情况，使用 step 为 blockDim.x 循环操作
     for (int i = tid; i < pack_num; i += blockDim.x) {
       float4 input_float4 = *(input_float4_ptr + i);
       float4 weight_float4 = *(weight_float4_ptr + i);
@@ -45,6 +53,7 @@ __global__ void matmul_kernel_cu_fp32(const float* input, const float* weight, f
 
     __syncthreads();
 
+    // block level reduce 获取一个向量点积结果
     using BlockReduce = cub::BlockReduce<float, THREAD_PER_BLOCK>;
     __shared__ typename BlockReduce::TempStorage temp;
     float part_sum = BlockReduce(temp).Sum(sdata[tid]);

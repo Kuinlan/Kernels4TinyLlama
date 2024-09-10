@@ -1,11 +1,26 @@
 #include <cub/block/block_reduce.cuh>
 #include <cstdint>
 
+// Multi Head Attention
+// Info:
+//   a group query implementation
+// Config:
+//   block(128)
+//   grid(head_num)
+// Args:
+//   pos: current step
+//   seq_len: max sequence length
+//   query: 1x(head_num * dim/head_num)
+//   score_ptr: head_num x seq_len
+//   output: 1xdim
+//   key_cache: layer_num x max_seq_len x dim
+//   value_cache: layer_num x max_seq_len x dim
+//   kv_dim: 256
+//   kv_mul: 8
+//   head_num：32
+//   head_size: 64
+//   layer_offset: layer_idx x max_seq_len x dim
 
-// warp this kernel
-// usage:
-//   grid dim = head number
-//   block dim = 128
 __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float* query,
                                             float* score_ptr, float* output, float* key_cache,
                                             float* value_cache, int32_t kv_dim, int32_t kv_mul,
@@ -56,7 +71,7 @@ __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float*
   }
   __syncthreads();
 
-  softmax_gpu(score_head, pos + 1);
+  softmax(score_head, pos + 1);
   __syncthreads();
 
   float* output_head = output + head * head_size;
@@ -76,7 +91,7 @@ __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float*
 }
 
 // thread 在 pos 维度上的并行
-__device__ void  softmax_gpu(float* __restrict__ x, int size) {
+__device__ void  softmax(float* __restrict__ x, int size) {
   int tid = threadIdx.x;
   int step = blockDim.x;
 

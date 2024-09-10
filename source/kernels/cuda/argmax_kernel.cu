@@ -1,8 +1,11 @@
-// warp this kernel
-// usage:
-//   block size = 512
-//   grid size = 1
-//   size = 32000 (vocab size)
+// Arg Max
+// Config:
+//   block(512)
+//   grid(1)
+// Args:
+//   input_ptr: Nx1
+//   size: N(vocab size)
+//   output_idx: 1
 __global__ void argmax_kernel_fp32(const float* input_ptr, size_t size, size_t* output_idx) {
   __shared__ size_t shared_max_ptr[32];
   __shared__ float shared_max_value[32];

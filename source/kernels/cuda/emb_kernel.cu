@@ -1,7 +1,13 @@
-// warp this kernel
-// usage:
-//   block size = 128
-//   grid size  = your max prefill sequence length
+// Token Embedding Extraction
+// Config:
+//   block(128)
+//   grid(max prefill sequence length)
+// Args:
+//   vocab_size: 32000
+//   token_num: N
+//   weight_dim: 2048
+//   input_ptr: Nx1
+//   weight_ptr:  vocab_size x weight_dim
 
 __global__ void emb_kernel_cu_fp32(int32_t vocab_size, int32_t token_num, int32_t weight_dim,
                                    const int32_t* input_ptr, const float* weight_ptr,
