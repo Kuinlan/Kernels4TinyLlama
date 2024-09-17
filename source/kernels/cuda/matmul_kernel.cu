@@ -65,3 +65,38 @@ __global__ void matmul_kernel_cu_fp32(const float* input, const float* weight, f
     __syncthreads();
   }
 }
+
+// group-wise int8 quant kernel
+template <int THREAD_PER_BLOCK, int ROW_PER_BLOCK>
+__global__ void matmul_kernel_cu_fp32int8(const float* input, const int8_t* weight,
+                                          const float* scales, const int32_t group_size,
+                                          float* output, int M, int K) {
+  __shared__ float sdata[THREAD_PER_BLOCK];
+  unsigned int tid = threadIdx.x;
+
+  int start_row = blockIdx.x * ROW_PER_BLOCK;
+  int end_row = start_row + ROW_PER_BLOCK;
+  if (start_row >= K) {
+    return;
+  }
+  for (int p = start_row; p < end_row; ++p) {
+    sdata[tid] = 0;
+    for (int i = tid; i < M; i += THREAD_PER_BLOCK) {
+      const int weight_idx = p * M + i;
+      const int group_idx = weight_idx / group_size;
+      // 进行反量化操作
+      sdata[tid] += input[i] * scales[group_idx] * static_cast<float>(weight[weight_idx]);
+    }
+    __syncthreads();
+
+    using BlockReduce = cub::BlockReduce<float, THREAD_PER_BLOCK>;
+    __shared__ typename BlockReduce::TempStorage temp;
+    float part_sum = BlockReduce(temp).Sum(sdata[tid]);
+    __syncthreads();
+
+    if (tid == 0) {
+      output[p] = part_sum;
+    }
+    __syncthreads();
+  }
+}
